@@ -1,0 +1,44 @@
+---
+
+# Create AH repository
+- name: Add Automation Hub repository
+  ah_repository:
+    name:                       "{{ __ah_repository_item.name }}"
+    description:                "{{ __ah_repository_item.description | default(omit) }}"
+    state:                      "{{ __ah_repository_item.state | default(ah_state | default('present')) }}"
+    proxy_url:                  "{{ __ah_repository_item.proxy_url | default(omit) }}"
+    url:                        "{{ __ah_repository_item.url }}"
+    requirements:               "{{ __ah_repository_item.requirements | default(omit) }}"
+    token:                      "{{ __ah_repository_item.token | default(omit) }}"
+    ah_host:                    "{{ ah_host | default(ah_hostname) }}"
+    ah_token:                   "{{ ah_token | default(omit) }}"
+    ah_username:                "{{ ah_username | default(omit) }}"
+    ah_password:                "{{ ah_password | default(omit) }}"
+    ah_path_prefix:             "{{ ah_path_prefix | default(omit) }}"
+    validate_certs:             "{{ ah_validate_certs | default(omit) }}"
+  loop: "{{ ah_repositories }}"
+  loop_control:
+    loop_var: "__ah_repository_item"
+  no_log: "{{ ah_configuration_repository_secure_logging }}"
+  async: 1000
+  poll: 0
+  register: __ah_repositories_job_async
+  changed_when: not __ah_repositories_job_async.changed
+  vars:
+    ansible_async_dir: '/tmp/.ansible_async'
+
+- name: "Create AH Repository | Wait for finish the ah_repository creation"
+  async_status:
+    jid: "{{ __ah_repositories_job_async_result_item.ansible_job_id }}"
+  register: __ah_repositories_job_async_result
+  until: __ah_repositories_job_async_result.finished
+  retries: "{{ ah_configuration_repository_async_retries }}"
+  delay: "{{ ah_configuration_repository_async_delay }}"
+  loop: "{{ __ah_repositories_job_async.results }}"
+  loop_control:
+    loop_var: __ah_repositories_job_async_result_item
+  when: __ah_repositories_job_async_result_item.ansible_job_id is defined
+  no_log: "{{ ah_configuration_repository_secure_logging }}"
+  vars:
+    ansible_async_dir: '/tmp/.ansible_async'
+...
